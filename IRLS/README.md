@@ -1,0 +1,1 @@
+# Copy1_of_IRLS文件中的模型较IRLS文件中的模型更为复杂。四个观测量，四个状态变量，H为4x4矩阵。参考《robost kalman filter》论文中最后的模型。引入了一个异常点。
