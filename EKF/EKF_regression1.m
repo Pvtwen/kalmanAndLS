@@ -111,6 +111,42 @@ for kk=1:100
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
+% Comparing classical EKF and EKF_OLS, store the estimation of classical
+% EKF into the variable X_classical
+P0=eye(4);
+X_classical=zeros(4,N);
+X_classical(:,1)=X(:,1)+sqrt(P0)*randn(4,1);
+
+Q=diag([0.5,1,0.5,1]);          % system process noise covariance matrix 
+R=diag([1,1]);         % observation noise variance matrix,  observation states, distance, angle
+% system noise and observation noise
+W=sqrt(Q)*randn(4,N);
+V=sqrt(R)*randn(2,N);
+
+
+for k=2:N
+    x1=X_classical(1,k-1)+X_classical(2,k-1)*T;
+    v1=X_classical(2,k-1)-kx*X_classical(2,k-1)^(2)*T;
+    y1=X_classical(3,k-1)-X_classical(4,k-1)*T;
+    v2=X_classical(4,k-1)-(ky*X_classical(4,k-1)^(2)-g)*T;
+    Xclassical_pre=[x1;v1;y1;v2];
+
+    r=Dist(x1,y1);alpha2=atan(x1/y1)*180/pi;
+    Zekf_pre=[r;alpha2];
+
+    % introducing A(k) matrix: partial derivative
+    A=[1 T 0 0;0 1-2*kx*X_classical(2,k-1)*T 0 0;0 0 1 -T;0 0 0 1-2*ky*X_classical(4,k-1)*T];
+    dd=Dist(x1,y1); de=1+(x1/y1)^(2);
+    H=[x1/dd 0 y1/dd 0;(1/y1)/de 0 (-x1/y1^(2))/de 0]; % jacobi matrix
+
+    P_pre=A*P0*A'+Q;
+
+    K=P_pre*H'*(H*P_pre*H'+R)^(-1);
+  
+    X_classical(:,k)=Xclassical_pre+K*(Z(:,k)-Zekf_pre);
+
+    P0=(I-K*H)*P_pre;
+end
 % calculate every column of the vector matrix,
 % store the value in the row vector
 for i=1:4
@@ -136,15 +172,8 @@ legend('real X displacement error variance','ekf estimation error variance');
 xlabel('sampling time/s');
 ylabel('variance');
 
-figure(3)
-plot(Difference_matrix(:,:,2),'-bo');
-hold on;
-plot(errPx_matrix(:,:,2),'-g+');
-legend('real X velocity error variance','ekf estimation error variance');
-xlabel('sampling time/s');
-ylabel('variance');
 
-figure(4)
+figure(3)
 plot(Difference_matrix(:,:,3),'-bo');
 hold on;
 plot(errPx_matrix(:,:,3),'-g+');
@@ -152,13 +181,22 @@ legend('real Y displacement error variance','ekf estimation error variance');
 xlabel('sampling time/s');
 ylabel('variance');
 
-figure(5)
-plot(Difference_matrix(:,:,4),'-bo');
+% omit the error variance comparision of the velocity
+figure(4)
+plot(X_ekf(1,:),'-go')
 hold on;
-plot(errPx_matrix(:,:,4),'-g+');
-legend('real Y velocity error variance','ekf estimation error variance');
+plot(X_classical(1,:),'-bo')
+legend('OLS EKF X displacement estimation','classical EKF X displacement estimation');
 xlabel('sampling time/s');
-ylabel('variance');
+ylabel('displacement/m');
+
+figure(5)
+plot(X_ekf(2,:),'-go')
+hold on;
+plot(X_classical(2,:),'-bo')
+legend('OLS EKF X velocity estimation','classical EKF X velocity estimation');
+xlabel('sampling time/s');
+ylabel('velocity m/s');
 
 function d=Dist(X1,X2)
     d=sqrt(X1^(2)+X2^(2));
